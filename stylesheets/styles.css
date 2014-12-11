@@ -176,7 +176,6 @@ pre {
   overflow: auto;
   overflow-y: hidden;
 	margin-bottom: 32px;
-  width:600px;
 }
 
 
@@ -209,7 +208,8 @@ td {
 
 /* Wrapper */
 .wrapper {
-  width:960px;
+  /*width:960px;*/
+  width:1060px;
 }
 
 
@@ -320,7 +320,8 @@ a.buttons:hover {
 /* Section - for main page content */
 
 section {
-  width:650px;
+  /*width:650px;*/
+  width:760px;
   float:right;
   padding-bottom:50px;
 }
